@@ -1,0 +1,31 @@
+{
+	"name"            : "alchemy-plugin-skeleton",
+	"description"     : "A skeleton for AlchemyMVC projects",
+	"author"          : "Jelle De Loecker <jelle@develry.be>",
+	"version"         : "0.1.0-alpha",
+	"repository"      : "skerit/alchemy-plugin-skeleton",
+	"license"         : "MIT",
+	"keywords"        : ["skeleton", "boilerplate", "alchemymvc"],
+	"contributors"    : [],
+	"dependencies"    : {},
+	"devDependencies" : {
+		"alchemymvc" : "~1.0.3",
+		"codecov"    : "~3.0.4",
+		"mocha"      : "~5.2.0",
+		"mongo-unit" : "~1.3.2",
+		"nyc"        : "^12.0.2"
+	},
+	"peerDependencies": {
+		"alchemymvc" : "~1.0.3"
+	},
+	"scripts": {
+		"test"            : "node_modules/.bin/mocha --exit --reporter spec --bail --timeout 5000 --file test/00-init.js",
+		"appveyor"        : "node_modules/.bin/mocha --exit --reporter spec --bail --timeout 20000 --file test/00-init.js",
+		"coverage"        : "node_modules/.bin/nyc --reporter=text --reporter=lcov mocha --exit --timeout 20000 --bail --file test/00-init.js",
+		"report-coverage" : "cat ./coverage/lcov.info | codecov"
+	},
+	"engines": {
+		"node": ">=8.9.0"
+	},
+	"private": true
+}
