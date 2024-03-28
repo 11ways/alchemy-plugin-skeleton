@@ -1,9 +1,9 @@
 {
-	"name"            : "alchemy-plugin-skeleton",
-	"description"     : "A skeleton for AlchemyMVC projects",
+	"name"            : "alchemy-thoth",
+	"description"     : "The Thoth AI plugin for Alchemy",
 	"author"          : "Jelle De Loecker <jelle@elevenways.be>",
 	"version"         : "0.1.0-alpha",
-	"repository"      : "skerit/alchemy-plugin-skeleton",
+	"repository"      : "11ways/alchemy-thoth",
 	"license"         : "MIT",
 	"keywords"        : ["skeleton", "boilerplate", "alchemymvc"],
 	"contributors"    : [],
