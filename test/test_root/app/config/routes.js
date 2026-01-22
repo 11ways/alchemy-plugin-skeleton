@@ -1,0 +1,3 @@
+/**
+ * Minimal routes for tests
+ */

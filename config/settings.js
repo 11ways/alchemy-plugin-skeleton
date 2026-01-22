@@ -24,6 +24,35 @@ THOTH_PLUGIN_GROUP.addSetting('enable_chat', {
 	default     : false,
 });
 
+// =============================================================================
+// MCP (Model Context Protocol) Server Settings
+// =============================================================================
+
+/**
+ * MCP servers are configured as an object keyed by server name.
+ * Each server can have different tools, auth settings, and paths.
+ *
+ * @example
+ * mcp_servers: {
+ *     team: {
+ *         path: '/mcp/team',
+ *         tool_classes: ['TeamTools'],
+ *         require_api_key: true,
+ *         requires: 'init_session',
+ *     },
+ *     public: {
+ *         path: '/mcp/public',
+ *         tool_names: ['init_session', 'server_info'],
+ *         allow_anonymous: true,
+ *     }
+ * }
+ */
+THOTH_PLUGIN_GROUP.addSetting('mcp_servers', {
+	type        : 'object',
+	default     : {},
+	description : 'MCP server configurations, keyed by server name',
+});
+
 /**
  * Create the main Thoth client
  *

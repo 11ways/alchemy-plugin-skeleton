@@ -1,74 +1,134 @@
-var assert = require('assert'),
-    MongoUnit = require('mongo-unit'),
-    libpath   = require('path'),
-    mongo_uri;
+/* istanbul ignore file */
+const MongoUnit = require('mongo-unit'),
+      libpath   = require('path'),
+      assert    = require('assert');
+
+let mongo_uri;
 
 // Make sure janeway doesn't start
 process.env.DISABLE_JANEWAY = 1;
 
+// Do not log load warnings
+process.env.NO_ALCHEMY_LOAD_WARNING = 1;
+
+// Set the path root to our test_root folder
+process.env.PATH_ROOT = libpath.resolve(__dirname, 'test_root');
+
 // Make MongoUnit a global
 global.MongoUnit = MongoUnit;
 
-// Require AlchemyMVC & load this plugin
-describe('AlchemyMVC', function() {
-	this.timeout(10000);
-	this.slow(5000);
+// Require alchemymvc (sets up the global `alchemy` variable)
+require('alchemymvc');
 
-	it('is needed to run plugin tests', function() {
-		require('alchemymvc');
-		assert.equal('object', typeof alchemy);
+// Helper to resolve plugin paths from node_modules
+function getPluginPath(plugin_name) {
+	// Alchemy plugins don't have main entry points, so we resolve their package.json
+	let package_json_path = require.resolve(plugin_name + '/package.json');
+	return libpath.dirname(package_json_path);
+}
 
-		// Unset the default port
-		alchemy.settings.port = null;
-
-		// Tell it we're running unit tests
-		alchemy.unit_testing = true;
+describe('require(\'alchemymvc\')', function() {
+	it('should create the global STAGES instance', function() {
+		assert.equal('object', typeof STAGES);
 	});
+});
 
-	// Mongo-unit gives you in-memory mongodb support
-	describe('Mongo-unit setup', function() {
-		this.timeout(70000)
+describe('Mongo-unit setup', function() {
+	this.timeout(150000);
 
-		it('should create in-memory mongodb instance first', async function() {
+	it('should create in-memory mongodb instance first', async function() {
+		let url = await MongoUnit.start({verbose: false});
+		mongo_uri = url;
 
-			var url = await MongoUnit.start();
-
-			mongo_uri = url;
-
-			if (!url) {
-				throw new Error('Failed to create mongo-unit instance');
-			}
-		});
+		if (!url) {
+			throw new Error('Failed to create mongo-unit instance');
+		}
 	});
+});
 
-	// This will load alchemy & start the server on a random port
-	// + define the mongo-unit datasource
+describe('Alchemy', function() {
+	this.timeout(60000);
+
 	describe('#start(callback)', function() {
-		it('should start the server', async function() {
+		it('should start the server with the thoth plugin', function(done) {
 
-			var pledge = alchemy.start({silent: true});
+			// Configure network settings
+			alchemy.setSetting('network.port', 3470);
+			alchemy.setSetting('performance.postpone_requests_on_overload', false);
 
-			// Also create the mongodb datasource
-			Datasource.create('mongo', 'default', {uri: mongo_uri});
+			// Configure datasource - create it in a postTask (after the connect stage tries to
+			// load from database.js which doesn't exist in the test). The datasource will
+			// connect lazily when first queried.
+			STAGES.getStage('datasource').addPostTask(() => {
+				Datasource.create('mongo', 'default', {uri: mongo_uri});
+			});
 
-			// Resolve the path to the plugin folder
-			let path_to_plugin = libpath.resolve(__filename, '..', '..');
+			// Load alchemy-form plugin (required by alchemy-acl)
+			let form_path = getPluginPath('alchemy-form');
+			alchemy.usePlugin('form', {path_to_plugin: form_path});
 
-			// Load the package.json
-			let package = require(libpath.resolve(path_to_plugin, 'package.json'));
+			// Load alchemy-acl plugin (provides User model and Permissions field)
+			let acl_path = getPluginPath('alchemy-acl');
+			alchemy.usePlugin('acl', {path_to_plugin: acl_path});
 
-			// Use this plugin
-			alchemy.usePlugin(package.name, {path_to_plugin: path_to_plugin});
+			// Load the thoth plugin with MCP server configuration
+			let thoth_path = libpath.resolve(__dirname, '..');
+			alchemy.usePlugin('thoth', {
+				path_to_plugin: thoth_path,
+				// Configure MCP servers for testing
+				mcp_servers: {
+					// Server without authentication (for most tests)
+					test: {
+						path            : '/mcp',
+						require_api_key : false,
+						allow_anonymous : true,
+					},
+					// Server with authentication (for API key tests)
+					auth: {
+						path            : '/mcp-auth',
+						require_api_key : true,
+						allow_anonymous : false,
+					},
+				}
+			});
 
-			await pledge;
+			// Start the server
+			alchemy.start({silent: true}, function started(err) {
+				if (err) {
+					return done(err);
+				}
+				done();
+			});
 		});
 	});
 });
 
-describe('Alchemy-Plugin-Skeleton', function() {
+describe('Alchemy-Thoth', function() {
 
-	it('should contain your own tests', function() {
-		throw new Error('Put your tests here!');
+	it('should have loaded the plugin namespace', function() {
+		assert.ok(Classes.Thoth, 'Thoth namespace should exist');
 	});
 
+	it('should have loaded MCP classes', function() {
+		assert.ok(Classes.Thoth.Mcp, 'Thoth.Mcp namespace should exist');
+		assert.ok(Classes.Thoth.Mcp.Manager, 'Thoth.Mcp.Manager should exist');
+		assert.ok(Classes.Thoth.Mcp.Tools, 'Thoth.Mcp.Tools should exist');
+	});
+
+	it('should have loaded MCP Error classes', function() {
+		assert.ok(Classes.Thoth.Mcp.Error, 'Thoth.Mcp.Error base class should exist');
+		assert.ok(Classes.Thoth.Mcp.Error.NotFound, 'Thoth.Mcp.Error.NotFound should exist');
+		assert.ok(Classes.Thoth.Mcp.Error.PermissionDenied, 'Thoth.Mcp.Error.PermissionDenied should exist');
+	});
+
+	it('should have loaded MCP Conduit', function() {
+		assert.ok(Classes.Thoth.Conduit, 'Thoth.Conduit namespace should exist');
+		assert.ok(Classes.Thoth.Conduit.Mcp, 'Thoth.Conduit.Mcp should exist');
+	});
+
+	it('should have registered MCP routes', function() {
+		// Route names use format: Mcp@{server}#{method}
+		let url = Router.getUrl('Mcp@test#post');
+		assert.ok(url, 'MCP POST route should be registered');
+	});
 });

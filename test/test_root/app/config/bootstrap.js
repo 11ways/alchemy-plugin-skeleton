@@ -1,0 +1,3 @@
+/**
+ * Minimal bootstrap for tests
+ */

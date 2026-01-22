@@ -72,11 +72,11 @@ ThothMlm.constitute(function chimeraConfig() {
  */
 ThothMlm.setDocumentMethod(function generateTextCompletion(text, options) {
 
-	if (!alchemy.plugins.thoth.client) {
+	if (!alchemy.plugins.thoth.client_instance) {
 		throw new Error('Thoth client is not enabled');
 	}
 
-	let result = alchemy.plugins.thoth.client.generateTextCompletion(this.thoth_slug, text, options);
+	let result = alchemy.plugins.thoth.client_instance.generateTextCompletion(this.thoth_slug, text, options);
 
 	return result;
 

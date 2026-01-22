@@ -189,8 +189,6 @@ ThothAction.setDocumentMethod(async function performAction(data) {
 
 	let choice = result?.choices?.[0]?.message?.content;
 
-	console.log('RESULT:', result, 'choice:', choice);
-
 	if (!choice) {
 		return null;
 	}
@@ -214,8 +212,6 @@ ThothAction.setDocumentMethod(async function performAction(data) {
 				lines = lines.slice(1, -1);
 
 				choice = lines.join('\n');
-
-				console.log('Parsing again:', choice)
 
 				return JSON.parse(choice);
 			}
