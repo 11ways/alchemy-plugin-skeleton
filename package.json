@@ -2,15 +2,14 @@
 	"name"            : "alchemy-thoth",
 	"description"     : "The Thoth AI plugin for Alchemy - includes LLM client and MCP server support",
 	"author"          : "Jelle De Loecker <jelle@elevenways.be>",
-	"version"         : "0.2.0-alpha",
+	"version"         : "0.2.0",
 	"repository"      : "11ways/alchemy-thoth",
 	"license"         : "MIT",
 	"keywords"        : ["alchemymvc", "ai", "llm", "mcp", "model-context-protocol"],
 	"contributors"    : [],
 	"dependencies"    : {},
 	"optionalDependencies": {
-		"@modelcontextprotocol/sdk": "^1.25.0",
-		"zod": "^3.25.0"
+		"@modelcontextprotocol/sdk": "~1.25.0"
 	},
 	"devDependencies" : {
 		"alchemymvc"    : ">=1.4.0",
@@ -20,11 +19,10 @@
 		"mocha"         : "~8.0.1",
 		"mongo-unit"    : "~3.3.0",
 		"nyc"           : "^15.1.0",
-		"@modelcontextprotocol/sdk": "^1.25.0",
-		"zod": "^3.25.0"
+		"@modelcontextprotocol/sdk": "~1.25.0"
 	},
 	"peerDependencies": {
-		"alchemymvc" : ">=1.4.0-alpha.1"
+		"alchemymvc" : ">=1.4.0"
 	},
 	"scripts": {
 		"test"            : "node_modules/.bin/mocha --exit --reporter spec --bail --timeout 5000 --file test/00-init.js",
@@ -34,6 +32,5 @@
 	},
 	"engines": {
 		"node": ">=18.0.0"
-	},
-	"private": true
+	}
 }
