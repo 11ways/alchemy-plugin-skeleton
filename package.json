@@ -2,7 +2,7 @@
 	"name"            : "alchemy-thoth",
 	"description"     : "The Thoth AI plugin for Alchemy - includes LLM client and MCP server support",
 	"author"          : "Jelle De Loecker <jelle@elevenways.be>",
-	"version"         : "0.2.0",
+	"version"         : "0.2.1-alpha",
 	"repository"      : "11ways/alchemy-thoth",
 	"license"         : "MIT",
 	"keywords"        : ["alchemymvc", "ai", "llm", "mcp", "model-context-protocol"],
