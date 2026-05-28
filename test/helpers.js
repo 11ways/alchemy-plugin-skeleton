@@ -113,6 +113,10 @@ function registerTestSession(manager, session_id, session, conduit) {
  */
 function getMcpUrl(server_name = 'test') {
 	let path = server_name === 'auth' ? '/mcp-auth' : '/mcp';
+	// Use the global harness if available, otherwise fall back to alchemy.settings
+	if (global.harness) {
+		return harness.getUrl(path);
+	}
 	return 'http://localhost:' + alchemy.settings.network.port + path;
 }
 

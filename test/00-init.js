@@ -1,48 +1,82 @@
 /* istanbul ignore file */
-const MongoUnit = require('mongo-unit'),
-      libpath   = require('path'),
-      assert    = require('assert');
+const TestHarness = require('alchemymvc/testing'),
+      libpath     = require('path'),
+      assert      = require('assert');
 
-let mongo_uri;
+// Pin a modern (OpenSSL-3 compatible) mongod binary, and point its data
+// dir at tmpfs when available. Without the version pin, the default
+// mongod binary needs libcrypto.so.1.1 and fails to start on a Node-26 /
+// OpenSSL-3 box. The harness forces the wiredTiger storage engine itself.
+const MONGO_VERSION = process.env.MONGOMS_VERSION || '7.0.14';
 
-// Make sure janeway doesn't start
-process.env.DISABLE_JANEWAY = 1;
-
-// Do not log load warnings
-process.env.NO_ALCHEMY_LOAD_WARNING = 1;
-
-// Set the path root to our test_root folder
-process.env.PATH_ROOT = libpath.resolve(__dirname, 'test_root');
-
-// Make MongoUnit a global
-global.MongoUnit = MongoUnit;
-
-// Require alchemymvc (sets up the global `alchemy` variable)
-require('alchemymvc');
-
-// Helper to resolve plugin paths from node_modules
-function getPluginPath(plugin_name) {
-	// Alchemy plugins don't have main entry points, so we resolve their package.json
-	let package_json_path = require.resolve(plugin_name + '/package.json');
-	return libpath.dirname(package_json_path);
+let mongo_dbpath;
+try {
+	if (require('fs').statSync('/dev/shm').isDirectory()) {
+		mongo_dbpath = libpath.join('/dev/shm', 'thoth-mongo-unit');
+	}
+} catch (err) {
+	// No tmpfs (e.g. macOS/Windows) - fall back to mongo-unit's on-disk default.
 }
 
-describe('require(\'alchemymvc\')', function() {
-	it('should create the global STAGES instance', function() {
-		assert.equal('object', typeof STAGES);
-	});
+// Create the test harness with plugin configuration
+const harness = new TestHarness({
+	path_root          : libpath.resolve(__dirname, 'test_root'),
+	environment        : 'test',
+	skip_local_config  : true,
+	port               : 3470,
+	mongo_unit_options : {
+		version : MONGO_VERSION,
+		...(mongo_dbpath ? { dbpath: mongo_dbpath } : {}),
+	},
+	plugins           : {
+		// Load form plugin (required by acl)
+		'form': {},
+
+		// Load acl plugin (provides User model and Permissions field)
+		'acl': {},
+
+		// Load the thoth plugin with MCP server configuration
+		'thoth': {
+			path_to_plugin : libpath.resolve(__dirname, '..'),
+			// Configure MCP servers for testing
+			mcp_servers: {
+				// Server without authentication (for most tests)
+				test: {
+					path            : '/mcp',
+					require_api_key : false,
+					allow_anonymous : true,
+				},
+				// Server with authentication (for API key tests)
+				auth: {
+					path            : '/mcp-auth',
+					require_api_key : true,
+					allow_anonymous : false,
+				},
+			},
+		},
+	},
 });
 
-describe('Mongo-unit setup', function() {
+// Export harness globally for use in other test files
+global.harness = harness;
+
+// Export MongoUnit for compatibility (though not really needed anymore)
+global.MongoUnit = harness.getMongoUnit();
+
+// =============================================================================
+// Test Setup
+// =============================================================================
+
+describe('require(\'alchemymvc\')', function() {
 	this.timeout(150000);
 
-	it('should create in-memory mongodb instance first', async function() {
-		let url = await MongoUnit.start({verbose: false});
-		mongo_uri = url;
+	it('should start in-memory MongoDB', async function() {
+		await harness.startMongo();
+	});
 
-		if (!url) {
-			throw new Error('Failed to create mongo-unit instance');
-		}
+	it('should create the global STAGES instance', function() {
+		harness.requireAlchemy();
+		assert.equal('object', typeof STAGES);
 	});
 });
 
@@ -50,55 +84,8 @@ describe('Alchemy', function() {
 	this.timeout(60000);
 
 	describe('#start(callback)', function() {
-		it('should start the server with the thoth plugin', function(done) {
-
-			// Configure network settings
-			alchemy.setSetting('network.port', 3470);
-			alchemy.setSetting('performance.postpone_requests_on_overload', false);
-
-			// Configure datasource - create it in a postTask (after the connect stage tries to
-			// load from database.js which doesn't exist in the test). The datasource will
-			// connect lazily when first queried.
-			STAGES.getStage('datasource').addPostTask(() => {
-				Datasource.create('mongo', 'default', {uri: mongo_uri});
-			});
-
-			// Load alchemy-form plugin (required by alchemy-acl)
-			let form_path = getPluginPath('alchemy-form');
-			alchemy.usePlugin('form', {path_to_plugin: form_path});
-
-			// Load alchemy-acl plugin (provides User model and Permissions field)
-			let acl_path = getPluginPath('alchemy-acl');
-			alchemy.usePlugin('acl', {path_to_plugin: acl_path});
-
-			// Load the thoth plugin with MCP server configuration
-			let thoth_path = libpath.resolve(__dirname, '..');
-			alchemy.usePlugin('thoth', {
-				path_to_plugin: thoth_path,
-				// Configure MCP servers for testing
-				mcp_servers: {
-					// Server without authentication (for most tests)
-					test: {
-						path            : '/mcp',
-						require_api_key : false,
-						allow_anonymous : true,
-					},
-					// Server with authentication (for API key tests)
-					auth: {
-						path            : '/mcp-auth',
-						require_api_key : true,
-						allow_anonymous : false,
-					},
-				}
-			});
-
-			// Start the server
-			alchemy.start({silent: true}, function started(err) {
-				if (err) {
-					return done(err);
-				}
-				done();
-			});
+		it('should start the server with the thoth plugin', async function() {
+			await harness.startServer();
 		});
 	});
 });
