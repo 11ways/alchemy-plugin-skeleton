@@ -54,6 +54,18 @@ THOTH_PLUGIN_GROUP.addSetting('mcp_servers', {
 });
 
 /**
+ * Whether MCP tools may read local files (file:// URLs, bare filesystem
+ * paths, private/loopback hosts) when downloading. FALSE by default: over
+ * the internet this would let anyone with MCP access read arbitrary files
+ * on the server. Only enable for trusted, locally-run setups.
+ */
+THOTH_PLUGIN_GROUP.addSetting('allow_local_file_access', {
+	type        : 'boolean',
+	default     : false,
+	description : 'Allow MCP tools to download from file:// URLs, local paths and private/loopback hosts',
+});
+
+/**
  * Create the main Thoth client
  *
  * @author   Jelle De Loecker <jelle@elevenways.be>
