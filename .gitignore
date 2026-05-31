@@ -44,3 +44,5 @@ yarn.lock
 # Ignore test files
 scratch*
 log.json
+# Test-run temp dir (PATH_TEMP for the test app)
+test/test_root/temp/

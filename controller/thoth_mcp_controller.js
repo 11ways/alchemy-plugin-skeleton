@@ -153,6 +153,62 @@ ThothMcp.setAction(async function post(conduit) {
 });
 
 /**
+ * Handle file uploads to a slot created via `request_upload_path`.
+ *
+ * The secret token in the URL is the only credential - this request carries
+ * no MCP session. The uploaded bytes are stored as an ephemeral temp file on
+ * the slot; they become a MediaFile (or anything else) only when an MCP tool
+ * later consumes the slot's readable reference.
+ *
+ * @author   Jelle De Loecker   <jelle@elevenways.be>
+ * @since    0.2.2
+ *
+ * @param    {Conduit}   conduit
+ * @param    {string}    token
+ */
+ThothMcp.setAction(async function upload(conduit, token) {
+
+	let manager;
+
+	try {
+		manager = this.getManager(conduit);
+	} catch (err) {
+		conduit.status = 404;
+		return conduit.end({error: 'Unknown MCP server'});
+	}
+
+	let slot = manager.getUploadSlot(token);
+
+	if (!slot) {
+		conduit.status = 404;
+		return conduit.end({error: 'Unknown or expired upload token'});
+	}
+
+	let file = conduit.files?.file;
+
+	if (!file || !(file.path || file.filepath)) {
+		conduit.status = 400;
+		return conduit.end({error: 'No file uploaded. Use: curl -F "file=@/path/to/file" <upload_url>'});
+	}
+
+	try {
+		await manager.storeUpload(slot, file);
+	} catch (err) {
+		log.error('Failed to store MCP upload:', err);
+		conduit.status = 500;
+		return conduit.end({error: 'Failed to store the uploaded file'});
+	}
+
+	return conduit.end({
+		ok        : true,
+		reference : slot.reference,
+		filename  : slot.original_filename,
+		size      : slot.size,
+		mimetype  : slot.mimetype,
+	});
+});
+
+/**
  * Handle GET requests (SSE streams)
  *
  * @author   Jelle De Loecker   <jelle@elevenways.be>
